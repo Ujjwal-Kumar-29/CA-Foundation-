@@ -74,7 +74,7 @@
             border: 1px solid var(--border);
             border-radius: 8px;
             box-sizing: border-box;
-            font-size: 16px; /* 16px prevents iOS/Android auto-zoom */
+            font-size: 16px;
             background: var(--surface);
             color: var(--text);
         }
@@ -213,7 +213,7 @@
         <h3>Log a Question</h3>
         <div class="form-group">
             <label>Subject</label>
-            <select id="subject-select">
+            <select id="subject-select" onchange="updateChapterDropdown()">
                 <option value="accounting">Accounting</option>
                 <option value="law">Business Laws</option>
                 <option value="maths">Quantitative Aptitude</option>
@@ -221,8 +221,9 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Chapter Name</label>
-            <input type="text" id="chapter-input" placeholder="e.g., Bank Reconciliation">
+            <label>Chapter</label>
+            <select id="chapter-select">
+                </select>
         </div>
         <div class="form-group">
             <label>Question Reference / Notes</label>
@@ -256,6 +257,50 @@
     <div id="eco" class="tab-content"><div id="eco-list"></div></div>
 
     <script>
+        // --- 0. CA Foundation Syllabus Data ---
+        const syllabusData = {
+            accounting: [
+                "Theoretical Framework", "Accounting Process", "Bank Reconciliation Statement", 
+                "Inventories", "Depreciation and Amortisation", "Bills of Exchange and Promissory Notes", 
+                "Preparation of Final Accounts of Sole Proprietors", "Financial Statements of NPOs", 
+                "Accounts from Incomplete Records", "Partnership and LLP Accounts", "Company Accounts"
+            ],
+            law: [
+                "Indian Regulatory Framework", "The Indian Contract Act, 1872", "The Sale of Goods Act, 1930", 
+                "The Indian Partnership Act, 1932", "The LLP Act, 2008", "The Companies Act, 2013", 
+                "The Negotiable Instruments Act, 1881"
+            ],
+            maths: [
+                "Ratio, Proportion, Indices, Logarithms", "Equations", "Linear Inequalities", 
+                "Mathematics of Finance", "Permutations and Combinations", "Sequence and Series", 
+                "Sets, Relations and Functions", "Basic Applications of Calculus", "Logical Reasoning", 
+                "Statistical Representation of Data", "Measures of Central Tendency and Dispersion", 
+                "Probability", "Theoretical Distributions", "Correlation and Regression", "Index Numbers"
+            ],
+            eco: [
+                "Introduction to Business Economics", "Theory of Demand and Supply", 
+                "Theory of Production and Cost", "Price Determination in Different Markets", 
+                "Determination of National Income", "Business Cycles", "Public Finance", 
+                "Money Market", "International Trade", "Indian Economy"
+            ]
+        };
+
+        function updateChapterDropdown() {
+            const subject = document.getElementById('subject-select').value;
+            const chapterSelect = document.getElementById('chapter-select');
+            
+            // Clear existing options
+            chapterSelect.innerHTML = '';
+            
+            // Populate new options based on selected subject
+            syllabusData[subject].forEach(chapter => {
+                const option = document.createElement('option');
+                option.value = chapter;
+                option.textContent = chapter;
+                chapterSelect.appendChild(option);
+            });
+        }
+
         // --- 1. Night Mode Setup ---
         function toggleNightMode() {
             document.body.classList.toggle('dark-mode');
@@ -264,7 +309,6 @@
             document.getElementById('theme-toggle').innerText = isDark ? '☀️ Light Mode' : '🌙 Night Mode';
         }
 
-        // Load theme preference on start
         if (localStorage.getItem('nightMode') === 'true') {
             document.body.classList.add('dark-mode');
             document.getElementById('theme-toggle').innerText = '☀️ Light Mode';
@@ -278,8 +322,12 @@
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             event.target.classList.add('active');
             document.getElementById(tabId).classList.add('active');
+            
+            // Change form subject to match tab and update chapters
             document.getElementById('subject-select').value = tabId;
-            renderEntries(); // Refresh list to apply search filters properly
+            updateChapterDropdown();
+            
+            renderEntries(); 
         }
 
         // --- 3. Database Setup (IndexedDB) ---
@@ -310,7 +358,7 @@
                     const img = new Image();
                     img.onload = function() {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 1080; // Limit width to save space
+                        const MAX_WIDTH = 1080; 
                         let width = img.width;
                         let height = img.height;
 
@@ -324,7 +372,6 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         
-                        // Compress to JPEG with 70% quality
                         resolve(canvas.toDataURL('image/jpeg', 0.7)); 
                     };
                     img.src = e.target.result;
@@ -336,19 +383,18 @@
         // --- 5. Save Entry to Database ---
         async function saveEntry() {
             const subject = document.getElementById('subject-select').value;
-            const chapter = document.getElementById('chapter-input').value.trim();
+            const chapter = document.getElementById('chapter-select').value;
             const qRef = document.getElementById('q-ref-input').value.trim();
             const tag = document.getElementById('tag-select').value;
             const imageFile = document.getElementById('image-input').files[0];
 
-            if (!chapter || !qRef) {
-                alert("Please fill in Chapter Name and Question Reference.");
+            if (!qRef) {
+                alert("Please fill in the Question Reference / Notes.");
                 return;
             }
 
             let imageDataUrl = null;
             if (imageFile) {
-                // Compress image before saving
                 imageDataUrl = await compressImage(imageFile);
             }
 
@@ -366,8 +412,6 @@
             store.add(newEntry);
 
             transaction.oncomplete = function() {
-                // Reset form
-                document.getElementById('chapter-input').value = '';
                 document.getElementById('q-ref-input').value = '';
                 document.getElementById('image-input').value = '';
                 alert("Entry logged successfully!");
@@ -385,14 +429,13 @@
                 eco: document.getElementById('eco-list')
             };
 
-            // Clear current lists
             for (let key in lists) lists[key].innerHTML = '';
 
             const transaction = db.transaction(["entries"], "readonly");
             const store = transaction.objectStore("entries");
-            const request = store.openCursor();
+            const cursorRequest = store.openCursor();
 
-            request.onsuccess = function(event) {
+            cursorRequest.onsuccess = function(event) {
                 const cursor = event.target.result;
                 if (cursor) {
                     const data = cursor.value;
@@ -418,7 +461,6 @@
                     }
                     cursor.continue();
                 } else {
-                    // Display message if empty
                     for (let key in lists) {
                         if (lists[key].innerHTML === '') {
                             lists[key].innerHTML = '<p style="text-align:center; color:var(--text-muted);">No entries found.</p>';
@@ -442,10 +484,10 @@
         function exportData() {
             const transaction = db.transaction(["entries"], "readonly");
             const store = transaction.objectStore("entries");
-            const request = store.getAll();
+            const exportRequest = store.getAll();
 
-            request.onsuccess = function() {
-                const dataStr = JSON.stringify(request.result);
+            exportRequest.onsuccess = function() {
+                const dataStr = JSON.stringify(exportRequest.result);
                 const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
                 const exportFileDefaultName = 'ca_revision_backup.json';
 
@@ -468,11 +510,9 @@
                     const transaction = db.transaction(["entries"], "readwrite");
                     const store = transaction.objectStore("entries");
                     
-                    // Clear existing database before import to prevent duplicates
                     store.clear(); 
                     
                     data.forEach(entry => {
-                        // Remove id to let autoIncrement assign new ones
                         delete entry.id; 
                         store.add(entry);
                     });
@@ -480,7 +520,7 @@
                     transaction.oncomplete = function() {
                         alert("Data restored successfully!");
                         renderEntries();
-                        document.getElementById('import-file').value = ''; // reset file input
+                        document.getElementById('import-file').value = '';
                     };
                 } catch (error) {
                     alert("Error reading backup file. Make sure it is a valid JSON.");
@@ -488,6 +528,12 @@
             };
             reader.readAsText(file);
         }
+
+        // --- 10. Initialise Chapter Dropdown on Load ---
+        window.onload = function() {
+            updateChapterDropdown();
+        };
     </script>
 </body>
 </html>
+
