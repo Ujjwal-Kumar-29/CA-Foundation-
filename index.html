@@ -15,9 +15,9 @@
             --text-muted: #64748b;
             --border: #e2e8f0;
             --danger: #ef4444;
+            --success: #10b981;
         }
 
-        /* Night Mode Overrides */
         body.dark-mode {
             --primary: #3b82f6;
             --primary-hover: #60a5fa;
@@ -50,7 +50,7 @@
             align-items: center;
         }
 
-        h2 { margin: 0; }
+        h2 { margin: 0; font-size: 20px; }
 
         button {
             cursor: pointer;
@@ -65,7 +65,7 @@
             color: var(--text);
             border: 1px solid var(--border);
             padding: 8px 12px;
-            font-size: 16px;
+            font-size: 14px;
         }
 
         .search-bar {
@@ -139,7 +139,6 @@
         }
         .btn-primary:hover { background: var(--primary-hover); }
 
-        /* Utility Buttons Area */
         .utility-area {
             display: flex;
             gap: 10px;
@@ -151,9 +150,35 @@
             background: var(--surface);
             color: var(--text);
             border: 1px solid var(--border);
+            font-size: 14px;
         }
 
-        /* Content Area & Cards */
+        /* Dashboard & Cards */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--primary);
+        }
+        .stat-card p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
         .tab-content { display: none; margin-top: 20px; }
         .tab-content.active { display: block; }
 
@@ -167,7 +192,14 @@
         .entry-header {
             display: flex;
             justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .unit-label {
+            display: block;
+            font-size: 13px;
+            color: var(--primary);
             margin-bottom: 10px;
+            font-weight: 600;
         }
         .tag {
             background: var(--bg);
@@ -199,11 +231,12 @@
             <h2>CA Revision Log</h2>
             <button class="icon-btn" onclick="toggleNightMode()" id="theme-toggle">🌙 Night Mode</button>
         </div>
-        <input type="text" class="search-bar" id="search-input" placeholder="Search chapter, ref, or tags..." onkeyup="renderEntries()">
+        <input type="text" class="search-bar" id="search-input" placeholder="Search chapter, unit, ref, or tags..." onkeyup="renderEntries()">
     </header>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('accounting')">Accounting</button>
+        <button class="tab-btn active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+        <button class="tab-btn" onclick="switchTab('accounting')">Accounting</button>
         <button class="tab-btn" onclick="switchTab('law')">Business Laws</button>
         <button class="tab-btn" onclick="switchTab('maths')">Quant. Aptitude</button>
         <button class="tab-btn" onclick="switchTab('eco')">Economics</button>
@@ -211,6 +244,7 @@
 
     <div class="form-container">
         <h3>Log a Question</h3>
+        
         <div class="form-group">
             <label>Subject</label>
             <select id="subject-select" onchange="updateChapterDropdown()">
@@ -220,15 +254,22 @@
                 <option value="eco">Business Economics</option>
             </select>
         </div>
+        
         <div class="form-group">
             <label>Chapter</label>
-            <select id="chapter-select">
-                </select>
+            <select id="chapter-select" onchange="updateUnitDropdown()"></select>
         </div>
+        
+        <div class="form-group" id="unit-group" style="display: none;">
+            <label>Unit</label>
+            <select id="unit-select"></select>
+        </div>
+
         <div class="form-group">
             <label>Question Reference / Notes</label>
             <input type="text" id="q-ref-input" placeholder="e.g., DPP 2 - Q 6">
         </div>
+        
         <div class="form-group">
             <label>Error Type / Tag</label>
             <select id="tag-select">
@@ -238,10 +279,12 @@
                 <option value="Important Revision">Important Revision</option>
             </select>
         </div>
+        
         <div class="form-group">
             <label>Upload Photo (Optional)</label>
             <input type="file" id="image-input" accept="image/*">
         </div>
+        
         <button class="btn-primary" onclick="saveEntry()">Save to Tracker</button>
         
         <div class="utility-area">
@@ -251,54 +294,120 @@
         </div>
     </div>
 
-    <div id="accounting" class="tab-content active"><div id="accounting-list"></div></div>
+    <div id="dashboard" class="tab-content active">
+        <h3>Your Progress Overview</h3>
+        <div class="stat-grid">
+            <div class="stat-card"><h3 id="stat-acc">0</h3><p>Accounting</p></div>
+            <div class="stat-card"><h3 id="stat-law">0</h3><p>Business Laws</p></div>
+            <div class="stat-card"><h3 id="stat-maths">0</h3><p>Quant. Aptitude</p></div>
+            <div class="stat-card"><h3 id="stat-eco">0</h3><p>Economics</p></div>
+        </div>
+        <h3 style="margin-top: 20px;">Top Weaknesses</h3>
+        <div id="tag-stats-list" style="margin-top: 10px; font-size: 14px; color: var(--text-muted);"></div>
+    </div>
+
+    <div id="accounting" class="tab-content"><div id="accounting-list"></div></div>
     <div id="law" class="tab-content"><div id="law-list"></div></div>
     <div id="maths" class="tab-content"><div id="maths-list"></div></div>
     <div id="eco" class="tab-content"><div id="eco-list"></div></div>
 
     <script>
-        // --- 0. CA Foundation Syllabus Data ---
+        // --- 0. CA Foundation Nested Syllabus Data (Corrected) ---
         const syllabusData = {
             accounting: [
-                "Theoretical Framework", "Accounting Process", "Bank Reconciliation Statement", 
-                "Inventories", "Depreciation and Amortisation", "Bills of Exchange and Promissory Notes", 
-                "Preparation of Final Accounts of Sole Proprietors", "Financial Statements of NPOs", 
-                "Accounts from Incomplete Records", "Partnership and LLP Accounts", "Company Accounts"
+                { name: "Theoretical Framework", units: ["Meaning and Scope of Accounting", "Accounting Concepts, Principles and Conventions", "Capital and Revenue Expenditures and Receipts", "Contingent Assets and Contingent Liabilities", "Accounting Policies", "Accounting as a Measurement Discipline", "Accounting Standards"] },
+                { name: "Accounting Process", units: ["Basic Accounting Procedures – Journal entries", "Ledgers", "Trial Balance", "Subsidiary Books", "Cash Book", "Rectification of Errors"] },
+                { name: "Bank Reconciliation Statement", units: [] },
+                { name: "Inventories", units: [] },
+                { name: "Depreciation and Amortisation", units: [] },
+                { name: "Bills of Exchange and Promissory Notes", units: [] },
+                { name: "Preparation of Final Accounts of Sole Proprietors", units: ["Final Accounts of Non-Manufacturing Entities", "Final Accounts of Manufacturing Entities"] },
+                { name: "Financial Statements of Not-for-Profit Organisations", units: [] },
+                { name: "Accounts from Incomplete Records", units: [] },
+                { name: "Partnership and LLP Accounts", units: ["Introduction to Partnership Accounts", "Treatment of Goodwill in Partnership Accounts", "Admission of a New Partner", "Retirement of a Partner", "Death of a Partner", "Dissolution of Partnership Firms and LLPs"] },
+                { name: "Company Accounts", units: ["Introduction to Company Accounts", "Issue, Forfeiture and Re-Issue of Shares", "Issue of Debentures", "Accounting for Bonus Issue and Right Issue", "Redemption of Preference Shares", "Redemption of Debentures"] }
             ],
             law: [
-                "Indian Regulatory Framework", "The Indian Contract Act, 1872", "The Sale of Goods Act, 1930", 
-                "The Indian Partnership Act, 1932", "The LLP Act, 2008", "The Companies Act, 2013", 
-                "The Negotiable Instruments Act, 1881"
+                { name: "Indian Regulatory Framework", units: [] },
+                { name: "The Indian Contract Act, 1872", units: ["Nature of Contracts", "Consideration", "Other Essential Elements of a Contract", "Performance of Contract", "Breach of Contract and its Remedies", "Contingent and Quasi Contracts", "Contract of Indemnity and Guarantee", "Bailment and Pledge", "Agency"] },
+                { name: "The Sale of Goods Act, 1930", units: ["Formation of the Contract of Sale", "Conditions & Warranties", "Transfer of Ownership and Delivery of Goods", "Unpaid Seller"] },
+                { name: "The Indian Partnership Act, 1932", units: ["General Nature of Partnership", "Relations of Partners", "Registration and Dissolution of a Firm"] },
+                { name: "The Limited Liability Partnership Act, 2008", units: [] },
+                { name: "The Companies Act, 2013", units: [] },
+                { name: "The Negotiable Instruments Act, 1881", units: [] }
             ],
             maths: [
-                "Ratio, Proportion, Indices, Logarithms", "Equations", "Linear Inequalities", 
-                "Mathematics of Finance", "Permutations and Combinations", "Sequence and Series", 
-                "Sets, Relations and Functions", "Basic Applications of Calculus", "Logical Reasoning", 
-                "Statistical Representation of Data", "Measures of Central Tendency and Dispersion", 
-                "Probability", "Theoretical Distributions", "Correlation and Regression", "Index Numbers"
+                { name: "Ratio and Proportion, Indices, Logarithms", units: [] },
+                { name: "Equations", units: [] },
+                { name: "Linear Inequalities", units: [] },
+                { name: "Mathematics of Finance", units: [] },
+                { name: "Basic Concepts of Permutations and Combinations", units: [] },
+                { name: "Sequence and Series – Arithmetic and Geometric Progressions", units: [] },
+                { name: "Sets, Relations and Functions, Basics of Limits and Continuity functions", units: [] },
+                { name: "Basic Applications of Differential and Integral Calculus in Business and Economics", units: [] },
+                { name: "Number Series, Coding and Decoding and Odd Man Out", units: [] },
+                { name: "Direction Sense Test", units: [] },
+                { name: "Seating Arrangements", units: [] },
+                { name: "Blood Relations", units: [] },
+                { name: "Statistical Description of Data / Sampling", units: ["Statistical Description of Data", "Sampling"] },
+                { name: "Measures of Central Tendency and Dispersion", units: ["Measures of Central Tendency", "Dispersion"] },
+                { name: "Probability", units: [] },
+                { name: "Theoretical Distributions", units: [] },
+                { name: "Correlation and Regression", units: [] },
+                { name: "Index Numbers", units: [] }
             ],
             eco: [
-                "Introduction to Business Economics", "Theory of Demand and Supply", 
-                "Theory of Production and Cost", "Price Determination in Different Markets", 
-                "Determination of National Income", "Business Cycles", "Public Finance", 
-                "Money Market", "International Trade", "Indian Economy"
+                { name: "Nature & Scope of Business Economics", units: ["Introduction", "Basic Problems of an Economy & Role of Price Mechanism"] },
+                { name: "Theory of Demand and Supply", units: ["Law of Demand and Elasticity of Demand", "Theory of Consumer Behaviour", "Supply"] },
+                { name: "Theory of Production and Cost", units: ["Theory of Production", "Theory of Cost"] },
+                { name: "Price Determination in Different Markets", units: ["Meaning and Types of Markets", "Determination of Prices", "Price Output Determination under Different Market Forms"] },
+                { name: "Business Cycles", units: [] },
+                { name: "Determination of National Income", units: ["National Income Accounting", "The Keynesian Theory of Determination of National Income"] },
+                { name: "Public Finance", units: ["Fiscal Functions: An Overview, Centre and State Finance", "Market Failure/ Government intervention to correct Market Failure", "The Process of Budget Making", "Fiscal Policy"] },
+                { name: "Money Market", units: ["The Concept of Money Demand: Important Theories", "The Concept of Money Supply", "Monetary Policy"] },
+                { name: "International Trade", units: ["Theories of International Trade", "The Instruments of Trade Policy", "Trade Negotiations", "Exchange Rate and Its Economic Effects", "International Capital Movements"] },
+                { name: "Indian Economy", units: [] }
             ]
         };
 
+        // Populates Chapters based on Subject
         function updateChapterDropdown() {
             const subject = document.getElementById('subject-select').value;
             const chapterSelect = document.getElementById('chapter-select');
-            
-            // Clear existing options
             chapterSelect.innerHTML = '';
             
-            // Populate new options based on selected subject
-            syllabusData[subject].forEach(chapter => {
+            syllabusData[subject].forEach((chapter, index) => {
                 const option = document.createElement('option');
-                option.value = chapter;
-                option.textContent = chapter;
+                option.value = index; 
+                option.textContent = chapter.name;
                 chapterSelect.appendChild(option);
             });
+            
+            updateUnitDropdown();
+        }
+
+        // Populates Units based on Chapter selection
+        function updateUnitDropdown() {
+            const subject = document.getElementById('subject-select').value;
+            const chapterIndex = document.getElementById('chapter-select').value;
+            const unitGroup = document.getElementById('unit-group');
+            const unitSelect = document.getElementById('unit-select');
+            
+            const selectedChapter = syllabusData[subject][chapterIndex];
+            
+            if (selectedChapter && selectedChapter.units.length > 0) {
+                unitSelect.innerHTML = '';
+                selectedChapter.units.forEach(unit => {
+                    const option = document.createElement('option');
+                    option.value = unit;
+                    option.textContent = unit;
+                    unitSelect.appendChild(option);
+                });
+                unitGroup.style.display = 'block';
+            } else {
+                unitGroup.style.display = 'none';
+                unitSelect.innerHTML = ''; 
+            }
         }
 
         // --- 1. Night Mode Setup ---
@@ -315,7 +424,7 @@
         }
 
         // --- 2. Tab Navigation ---
-        let currentTab = 'accounting';
+        let currentTab = 'dashboard';
         function switchTab(tabId) {
             currentTab = tabId;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -323,16 +432,16 @@
             event.target.classList.add('active');
             document.getElementById(tabId).classList.add('active');
             
-            // Change form subject to match tab and update chapters
-            document.getElementById('subject-select').value = tabId;
-            updateChapterDropdown();
-            
+            if(tabId !== 'dashboard') {
+                document.getElementById('subject-select').value = tabId;
+                updateChapterDropdown();
+            }
             renderEntries(); 
         }
 
         // --- 3. Database Setup (IndexedDB) ---
         let db;
-        const request = indexedDB.open("CARevisionTracker", 1);
+        const request = indexedDB.open("CARevisionTracker", 2);
 
         request.onupgradeneeded = function(event) {
             db = event.target.result;
@@ -341,16 +450,10 @@
             }
         };
 
-        request.onsuccess = function(event) {
-            db = event.target.result;
-            renderEntries();
-        };
+        request.onsuccess = function(event) { db = event.target.result; renderEntries(); };
+        request.onerror = function(event) { alert("Database error: " + event.target.errorCode); };
 
-        request.onerror = function(event) {
-            alert("Database error: " + event.target.errorCode);
-        };
-
-        // --- 4. Image Compression Logic ---
+        // --- 4. Image Compression ---
         function compressImage(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -362,16 +465,10 @@
                         let width = img.width;
                         let height = img.height;
 
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-
-                        canvas.width = width;
-                        canvas.height = height;
+                        if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                        canvas.width = width; canvas.height = height;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
-                        
                         resolve(canvas.toDataURL('image/jpeg', 0.7)); 
                     };
                     img.src = e.target.result;
@@ -380,27 +477,31 @@
             });
         }
 
-        // --- 5. Save Entry to Database ---
+        // --- 5. Save Entry ---
         async function saveEntry() {
             const subject = document.getElementById('subject-select').value;
-            const chapter = document.getElementById('chapter-select').value;
+            const chapterIndex = document.getElementById('chapter-select').value;
+            const chapterName = syllabusData[subject][chapterIndex].name;
+            
+            let unitName = "";
+            const unitGroup = document.getElementById('unit-group');
+            if (unitGroup.style.display !== 'none') {
+                unitName = document.getElementById('unit-select').value;
+            }
+
             const qRef = document.getElementById('q-ref-input').value.trim();
             const tag = document.getElementById('tag-select').value;
             const imageFile = document.getElementById('image-input').files[0];
 
-            if (!qRef) {
-                alert("Please fill in the Question Reference / Notes.");
-                return;
-            }
+            if (!qRef) { alert("Please fill in the Question Reference / Notes."); return; }
 
             let imageDataUrl = null;
-            if (imageFile) {
-                imageDataUrl = await compressImage(imageFile);
-            }
+            if (imageFile) { imageDataUrl = await compressImage(imageFile); }
 
             const newEntry = {
                 subject: subject,
-                chapter: chapter,
+                chapter: chapterName,
+                unit: unitName, 
                 qRef: qRef,
                 tag: tag,
                 image: imageDataUrl,
@@ -419,15 +520,10 @@
             };
         }
 
-        // --- 6. Render Entries and Search Filter ---
+        // --- 6. Render ---
         function renderEntries() {
             const searchQuery = document.getElementById('search-input').value.toLowerCase();
-            const lists = {
-                accounting: document.getElementById('accounting-list'),
-                law: document.getElementById('law-list'),
-                maths: document.getElementById('maths-list'),
-                eco: document.getElementById('eco-list')
-            };
+            const lists = { accounting: document.getElementById('accounting-list'), law: document.getElementById('law-list'), maths: document.getElementById('maths-list'), eco: document.getElementById('eco-list') };
 
             for (let key in lists) lists[key].innerHTML = '';
 
@@ -435,15 +531,23 @@
             const store = transaction.objectStore("entries");
             const cursorRequest = store.openCursor();
 
+            let stats = { accounting: 0, law: 0, maths: 0, eco: 0 };
+            let tagCounts = {};
+
             cursorRequest.onsuccess = function(event) {
                 const cursor = event.target.result;
                 if (cursor) {
                     const data = cursor.value;
-                    const searchString = `${data.chapter} ${data.qRef} ${data.tag}`.toLowerCase();
+                    stats[data.subject]++;
+                    tagCounts[data.tag] = (tagCounts[data.tag] || 0) + 1;
+
+                    const unitText = data.unit ? data.unit : "";
+                    const searchString = `${data.chapter} ${unitText} ${data.qRef} ${data.tag}`.toLowerCase();
                     
                     if (searchString.includes(searchQuery)) {
                         const dateString = new Date(data.timestamp).toLocaleDateString();
                         let imgHTML = data.image ? `<img src="${data.image}" class="entry-img" alt="Question Image">` : '';
+                        let unitHTML = data.unit ? `<span class="unit-label">↳ ${data.unit}</span>` : '';
 
                         const html = `
                             <div class="entry-card">
@@ -451,6 +555,7 @@
                                     <strong>${data.chapter}</strong>
                                     <span style="font-size: 12px; color: var(--text-muted);">${dateString}</span>
                                 </div>
+                                ${unitHTML}
                                 <div style="margin-bottom: 10px;">Ref: ${data.qRef}</div>
                                 <span class="tag">${data.tag}</span>
                                 ${imgHTML}
@@ -466,11 +571,26 @@
                             lists[key].innerHTML = '<p style="text-align:center; color:var(--text-muted);">No entries found.</p>';
                         }
                     }
+
+                    document.getElementById('stat-acc').innerText = stats.accounting;
+                    document.getElementById('stat-law').innerText = stats.law;
+                    document.getElementById('stat-maths').innerText = stats.maths;
+                    document.getElementById('stat-eco').innerText = stats.eco;
+
+                    const tagListDiv = document.getElementById('tag-stats-list');
+                    if(Object.keys(tagCounts).length > 0) {
+                        tagListDiv.innerHTML = '';
+                        for(let tag in tagCounts) {
+                            tagListDiv.innerHTML += `<div style="padding: 8px; border-bottom: 1px solid var(--border);"><strong>${tag}:</strong> ${tagCounts[tag]} entries</div>`;
+                        }
+                    } else {
+                        tagListDiv.innerHTML = 'Log some entries to see your most common errors.';
+                    }
                 }
             };
         }
 
-        // --- 7. Delete Entry ---
+        // --- 7. Delete ---
         function deleteEntry(id) {
             if(confirm("Are you sure you want to delete this entry?")) {
                 const transaction = db.transaction(["entries"], "readwrite");
@@ -480,60 +600,44 @@
             }
         }
 
-        // --- 8. Export Data to JSON (Backup) ---
+        // --- 8 & 9. Export / Import ---
         function exportData() {
             const transaction = db.transaction(["entries"], "readonly");
             const store = transaction.objectStore("entries");
             const exportRequest = store.getAll();
-
             exportRequest.onsuccess = function() {
                 const dataStr = JSON.stringify(exportRequest.result);
                 const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                const exportFileDefaultName = 'ca_revision_backup.json';
-
                 const linkElement = document.createElement('a');
                 linkElement.setAttribute('href', dataUri);
-                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.setAttribute('download', 'ca_revision_backup.json');
                 linkElement.click();
             };
         }
 
-        // --- 9. Import Data from JSON (Restore) ---
         function importData(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = JSON.parse(e.target.result);
                     const transaction = db.transaction(["entries"], "readwrite");
                     const store = transaction.objectStore("entries");
-                    
                     store.clear(); 
-                    
-                    data.forEach(entry => {
-                        delete entry.id; 
-                        store.add(entry);
-                    });
-
+                    data.forEach(entry => { delete entry.id; store.add(entry); });
                     transaction.oncomplete = function() {
                         alert("Data restored successfully!");
                         renderEntries();
                         document.getElementById('import-file').value = '';
                     };
-                } catch (error) {
-                    alert("Error reading backup file. Make sure it is a valid JSON.");
-                }
+                } catch (error) { alert("Error reading backup file."); }
             };
             reader.readAsText(file);
         }
 
-        // --- 10. Initialise Chapter Dropdown on Load ---
-        window.onload = function() {
-            updateChapterDropdown();
-        };
+        // Init
+        window.onload = function() { updateChapterDropdown(); };
     </script>
 </body>
 </html>
-
